@@ -1,11 +1,27 @@
 # Query Execution Plan Analysis
 
-## Experiment 1: Student Department Search
+## 1. Introduction
 
-### Objective
+This document presents the baseline and post-index execution plan analysis for three SQL queries developed for the Student Management System case study.
+
+The analysis uses PostgreSQL `EXPLAIN ANALYZE` to examine query execution strategies, execution time, planning time, table scans, join methods and opportunities for performance improvement.
+
+The experiments investigate:
+
+1. Student Department Search
+2. Course Performance and Student Results Analysis
+3. Department-Level Academic Performance
+
+---
+
+## 2. Experiment 1: Student Department Search
+
+### 2.1 Objective
+
 Analyse the performance of a query retrieving students belonging to a specific department.
 
-### Original SQL Query
+### 2.2 Original SQL Query
+
 ```sql
 EXPLAIN ANALYZE
 SELECT
@@ -20,7 +36,7 @@ JOIN departments d
 WHERE s.department_id = 2;
 ```
 
-### Execution Results
+### 2.3 Baseline Execution Results
 
 | Performance Metric | Result |
 |---|---:|
@@ -28,130 +44,63 @@ WHERE s.department_id = 2;
 | Execution Time | 0.275 ms |
 | Rows Returned | 200 |
 | Rows Removed by Filter | 800 |
-| Student Table Scan | Sequential Scan |
-| Department Table Scan | Index Scan |
+| Students Table Scan | Sequential Scan |
+| Departments Table Scan | Index Scan |
 
-### Analysis
+### 2.4 Baseline Analysis
+
 PostgreSQL used the primary-key index on the departments table to locate the Information Technology department.
 
-However, it performed a sequential scan on the students table, examining all 1,000 student records and returning 200 matching records.
+However, it performed a sequential scan on the students table, examining 1,000 student records and returning 200 matching records.
 
-This indicates an opportunity to investigate whether creating an index on the `department_id` column in the students table improves query performance.
+This indicated an opportunity to investigate whether an index on `students.department_id` could improve query performance.
 
-### Conclusion
-The original query executed successfully with an execution time of 0.275 milliseconds. This measurement will serve as the baseline for comparison after optimization.
-### Experiment 1: Post-Index Performance Analysis
+### 2.5 Indexing and Post-Index Analysis
 
-**Index created:** `idx_students_department_id`
+Index created:
 
-**Indexed column:** `students.department_id`
+```sql
+CREATE INDEX idx_students_department_id
+ON students(department_id);
 
-After creating the index and running `ANALYZE students`, the original query was executed again using `EXPLAIN ANALYZE`.
+ANALYZE students;
+```
 
-**Post-index execution results:**
-- Execution Time: 0.225 ms
-- Planning Time: 1.008 ms
-- Rows returned: 200
-- Rows removed by filter: 800
-- Scan method: Sequential Scan on students
+Post-index execution results:
 
-**Comparison with baseline:**
+| Performance Metric | Result |
+|---|---:|
+| Planning Time | 1.008 ms |
+| Execution Time | 0.225 ms |
+| Rows Returned | 200 |
+| Students Table Scan | Sequential Scan |
+
+### 2.6 Performance Comparison
 
 | Metric | Before Index | After Index |
 |---|---:|---:|
 | Execution Time | 0.275 ms | 0.225 ms |
 | Scan Method | Sequential Scan | Sequential Scan |
 
-**Analysis:**
+The observed execution time decreased by approximately 18.2%.
 
-The execution time decreased from 0.275 ms to 0.225 ms, representing an observed reduction of approximately 18.2%.
+However, PostgreSQL continued using a sequential scan rather than the newly created index. The timing difference does not establish that the index caused the improvement. Cache effects and execution variability may influence the measurements.
 
-However, PostgreSQL continued using a sequential scan instead of the newly created index. This is reasonable because the students table contains only 1,000 records, making a sequential scan potentially more efficient than an index scan.
+### 2.7 Conclusion
 
-The observed timing difference does not establish that the index caused the improvement. Further testing with larger datasets and repeated executions would provide stronger evidence.
+The index was created successfully, but PostgreSQL did not select it for this query. This demonstrates that creating an index does not guarantee its use. The query planner selects an execution strategy based on estimated cost and data characteristics.
 
-**Conclusion:**
+---
 
-The index was created successfully, but PostgreSQL's query planner did not select it for this query. This experiment demonstrates that creating an index does not guarantee its use; PostgreSQL chooses an execution strategy based on estimated cost.
-### Experiment 2: Post-Index Performance Analysis
+## 3. Experiment 2: Course Performance and Student Results Analysis
 
-**Index created:** `idx_enrollments_offering_id`
+### 3.1 Objective
 
-**Indexed column:** `enrollments.offering_id`
-
-After creating the index and running `ANALYZE enrollments`, the original Course Results Analysis query was executed again using `EXPLAIN ANALYZE`.
-
-**Post-index execution results:**
-- Execution Time: 3.968 ms
-- Planning Time: 10.314 ms
-- Rows returned: 500
-- Enrollments scan method: Sequential Scan
-- Join method: Hash Join
-
-**Comparison with baseline:**
-
-| Metric | Before Index | After Index |
-|---|---:|---:|
-| Execution Time | 3.940 ms | 3.968 ms |
-| Planning Time | 3.248 ms | 10.314 ms |
-| Rows Returned | 500 | 500 |
-| Enrollments Scan | Sequential Scan | Sequential Scan |
-
-**Analysis:**
-
-The execution time increased slightly from 3.940 ms to 3.968 ms, a difference of approximately 0.71%.
-
-The execution plan shows that PostgreSQL continued using a sequential scan on the enrollments table rather than the newly created index. It used a Hash Join to connect enrollments with course offerings.
-
-This is a reasonable optimizer decision because the query processes 500 matching enrollment records from a table containing 5,000 records. A sequential scan may be more efficient than retrieving many records through an index.
-
-The planning time also increased, but planning time can fluctuate between executions and should not be interpreted as evidence that the index caused slower query execution.
-
-**Conclusion:**
-
-The index was successfully created, but PostgreSQL did not select it for this query. The experiment demonstrates that index effectiveness depends on query structure, table size, data distribution, and the optimizer's cost estimates.
-### Experiment 3: Post-Index Performance Analysis
-
-**Indexes previously created:**
-- `idx_students_department_id`
-- `idx_enrollments_offering_id`
-
-The Department-Level Academic Performance query was executed again using `EXPLAIN ANALYZE`.
-
-**Post-index execution results:**
-- Execution Time: 19.449 ms
-- Planning Time: 6.352 ms
-- Rows returned: 10
-- Records processed: 5,000
-- Main operations: Hash Join, Sort and GroupAggregate
-
-**Comparison with baseline:**
-
-| Metric | Before Indexing | After Indexing |
-|---|---:|---:|
-| Execution Time | 25.721 ms | 19.449 ms |
-| Planning Time | 3.398 ms | 6.352 ms |
-| Rows Returned | 10 | 10 |
-| Records Processed | 5,000 | 5,000 |
-
-**Analysis:**
-
-The execution time decreased from 25.721 ms to 19.449 ms, representing an observed reduction of approximately 24.4%.
-
-However, the execution plan does not show either of the newly created indexes being used. PostgreSQL continued using sequential scans and Hash Join operations to process the records.
-
-The query also performed a sorting operation on 5,000 records before executing GroupAggregate to produce the 10 department/course summary rows.
-
-The observed performance reduction cannot therefore be attributed directly to the newly created indexes. Execution variability, caching and other database conditions may influence the difference.
-
-**Conclusion:**
-
-The query executed successfully with a lower observed execution time. However, the execution plan indicates that sorting, joining and aggregation remain important operations. Further testing is required before concluding that a particular optimization caused the improvement.
-Experiment 2: Course Performance and Student Results Analysis
-Objective
 Evaluate the performance of a multi-table SQL query retrieving student examination results for a specific course.
 
-Original SQL Query
+### 3.2 Original SQL Query
+
+```sql
 EXPLAIN ANALYZE
 SELECT
     s.registration_number,
@@ -174,24 +123,204 @@ JOIN results r
     ON e.enrollment_id = r.enrollment_id
 WHERE c.course_code = 'IT101'
 ORDER BY s.registration_number;
-Execution Results
-Performance Metric	Result
-Planning Time	3.248 ms
-Execution Time	3.940 ms
-Rows Returned	500
-Shared Buffer Hits	3,043
-Join Strategy	Nested Loop and Hash Join
-Sorting Method	Quicksort
-Execution Plan Analysis
-PostgreSQL used the unique index on courses.course_code to locate IT101.
-A sequential scan was performed on the enrollments table, examining 5,000 records.
-A sequential scan was performed on course_offerings, examining 10 records.
-Index scans were used on students and results to retrieve matching records.
-PostgreSQL used quicksort to arrange the final 500 records by student registration number.
-Optimization Opportunities
-The sequential scan on enrollments presents an opportunity to investigate an index on offering_id.
+```
 
-The execution plan also estimated 26 rows at the top level but returned 500 rows. This difference indicates a cardinality estimation error worth investigating during optimization.
+### 3.3 Baseline Execution Results
 
-Conclusion
-The original query returned 500 records with an execution time of 3.940 milliseconds. Its execution plan revealed opportunities to investigate indexing and query-planner statistics. These findings will serve as the baseline for subsequent optimization experiments.
+| Performance Metric | Result |
+|---|---:|
+| Planning Time | 3.248 ms |
+| Execution Time | 3.940 ms |
+| Rows Returned | 500 |
+| Shared Buffer Hits | 3,043 |
+| Join Strategy | Nested Loop and Hash Join |
+| Sorting Method | Quicksort |
+
+### 3.4 Baseline Analysis
+
+PostgreSQL used the unique index on `courses.course_code` to locate the course with code `IT101`.
+
+A sequential scan was performed on the enrollments table, examining 5,000 records. A sequential scan was also performed on the course_offerings table, examining 10 records.
+
+Index scans were used on the students and results tables to retrieve matching records.
+
+PostgreSQL used the quicksort method to arrange the final 500 records by student registration number.
+
+The sequential scan on enrollments presented an opportunity to investigate indexing on the `offering_id` column.
+
+The execution plan also estimated 26 rows at the top level but returned 500 rows, indicating a difference between estimated and actual cardinality.
+
+### 3.5 Indexing and Post-Index Analysis
+
+Index created:
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_enrollments_offering_id
+ON enrollments(offering_id);
+
+ANALYZE enrollments;
+```
+
+Post-index execution results:
+
+| Performance Metric | Result |
+|---|---:|
+| Planning Time | 10.314 ms |
+| Execution Time | 3.968 ms |
+| Rows Returned | 500 |
+| Enrollments Scan | Sequential Scan |
+| Join Method | Hash Join |
+
+### 3.6 Performance Comparison
+
+| Metric | Before Index | After Index |
+|---|---:|---:|
+| Execution Time | 3.940 ms | 3.968 ms |
+| Planning Time | 3.248 ms | 10.314 ms |
+| Rows Returned | 500 | 500 |
+| Enrollments Scan | Sequential Scan | Sequential Scan |
+
+The execution time increased slightly by approximately 0.71%.
+
+PostgreSQL continued using a sequential scan on enrollments instead of the newly created index.
+
+The planning time also increased, but planning-time variation should not be interpreted as evidence that the index caused slower query execution.
+
+### 3.7 Conclusion
+
+The index was successfully created, but PostgreSQL did not select it for this query. This experiment demonstrates that index effectiveness depends on query structure, table size, data distribution and the optimizer's cost estimates.
+
+---
+
+## 4. Experiment 3: Department-Level Academic Performance
+
+### 4.1 Objective
+
+Analyse academic performance across departments and courses by calculating student participation, average scores and the number of students achieving grade A.
+
+### 4.2 Original SQL Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT
+    d.department_name,
+    c.course_code,
+    c.course_title,
+    COUNT(DISTINCT e.student_id) AS total_students,
+    ROUND(AVG(r.total_score), 2) AS average_score,
+    COUNT(*) FILTER (
+        WHERE r.grade = 'A'
+    ) AS students_with_grade_A
+FROM departments d
+JOIN courses c
+    ON d.department_id = c.department_id
+JOIN course_offerings co
+    ON c.course_id = co.course_id
+JOIN enrollments e
+    ON co.offering_id = e.offering_id
+JOIN results r
+    ON e.enrollment_id = r.enrollment_id
+GROUP BY
+    d.department_name,
+    c.course_code,
+    c.course_title
+ORDER BY
+    d.department_name,
+    c.course_code;
+```
+
+### 4.3 Baseline Execution Results
+
+| Performance Metric | Result |
+|---|---:|
+| Planning Time | 3.398 ms |
+| Execution Time | 25.721 ms |
+| Rows Returned | 10 |
+| Records Processed | 5,000 |
+| Main Operations | Hash Join, Sort and GroupAggregate |
+
+### 4.4 Baseline Analysis
+
+PostgreSQL performed sequential scans on the results and enrollments tables, processing 5,000 records from each.
+
+It also scanned the smaller dimension tables, including departments, courses and course_offerings.
+
+The execution plan used Hash Join operations to combine the tables, followed by sorting and GroupAggregate operations to produce the departmental course-performance summaries.
+
+The sorting and aggregation operations represented important areas to monitor during performance analysis.
+
+### 4.5 Indexing and Post-Index Analysis
+
+The following indexes had already been created:
+
+```sql
+CREATE INDEX idx_students_department_id
+ON students(department_id);
+
+CREATE INDEX IF NOT EXISTS idx_enrollments_offering_id
+ON enrollments(offering_id);
+```
+
+The department-level academic performance query was executed again using `EXPLAIN ANALYZE`.
+
+Post-index execution results:
+
+| Performance Metric | Result |
+|---|---:|
+| Planning Time | 6.352 ms |
+| Execution Time | 19.449 ms |
+| Rows Returned | 10 |
+| Records Processed | 5,000 |
+| Main Operations | Hash Join, Sort and GroupAggregate |
+
+### 4.6 Performance Comparison
+
+| Metric | Before Indexing | After Indexing |
+|---|---:|---:|
+| Execution Time | 25.721 ms | 19.449 ms |
+| Planning Time | 3.398 ms | 6.352 ms |
+| Rows Returned | 10 | 10 |
+| Records Processed | 5,000 | 5,000 |
+
+The observed execution time decreased by approximately 24.4%.
+
+However, the execution plan did not show either newly created index being used. PostgreSQL continued using sequential scans and Hash Join operations.
+
+The observed performance reduction therefore cannot be attributed directly to the indexes. Execution variability, caching and other database conditions may influence the difference.
+
+### 4.7 Conclusion
+
+The query executed successfully with a lower observed execution time. However, the execution plan indicates that sorting, joining and aggregation remain important operations.
+
+Further testing with larger datasets and repeated executions would provide stronger evidence before concluding that a particular optimization caused the improvement.
+
+---
+
+## 5. Overall Findings
+
+The three experiments demonstrate that PostgreSQL's query planner selects execution strategies based on estimated costs, table sizes, data distribution and query structure.
+
+The indexing experiments produced the following observations:
+
+1. The student department index was created successfully but was not selected by PostgreSQL.
+2. The enrollment offering index was created successfully but was not selected for the course results query.
+3. The department-level performance query showed a lower observed execution time, but the execution plan did not demonstrate the use of either newly created index.
+
+These findings demonstrate that indexing alone does not guarantee improved query performance.
+
+## 6. General Recommendation
+
+For improved query performance in larger student management databases, the following practices are recommended:
+
+- Analyse execution plans before creating indexes.
+- Create indexes based on frequently used filtering and joining columns.
+- Use `ANALYZE` to maintain current table statistics.
+- Compare actual execution plans before and after optimization.
+- Test with larger and representative datasets.
+- Avoid creating unnecessary indexes because they introduce storage and maintenance overhead.
+
+## 7. Conclusion
+
+The execution-plan analysis provided practical insight into PostgreSQL query processing, including sequential scans, index scans, Hash Joins, Nested Loops, sorting and aggregation.
+
+The experiments also demonstrated the importance of evidence-based query optimization. Rather than assuming that an index improves performance, database administrators should examine the actual execution plan and evaluate performance measurements before drawing conclusions.
