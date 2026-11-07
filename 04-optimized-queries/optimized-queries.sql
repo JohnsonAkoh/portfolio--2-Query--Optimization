@@ -1,8 +1,8 @@
-
 -- MIVA Open University
 -- Master of Information Technology
 -- Portfolio 2: Query Optimization
--- Optimized and tested SQL queries
+-- Original Queries Re-executed After Indexing
+-- Purpose: Evaluate query execution plans after index creation.
 
 -- =====================================================
 -- QUERY 1: STUDENT DEPARTMENT SEARCH
