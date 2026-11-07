@@ -30,7 +30,7 @@ The objectives of this project are to:
 
 ## 4. Case Study
 
-**Proposed Case Study:** Student Management System.
+**Proposed Case Study:** University Student Management System.
 
 The project uses a relational database containing student, department, lecturer, course, semester, enrollment, and academic result information.
 
