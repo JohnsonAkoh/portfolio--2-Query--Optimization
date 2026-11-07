@@ -73,3 +73,40 @@ The observed timing difference does not establish that the index caused the impr
 **Conclusion:**
 
 The index was created successfully, but PostgreSQL's query planner did not select it for this query. This experiment demonstrates that creating an index does not guarantee its use; PostgreSQL chooses an execution strategy based on estimated cost.
+### Experiment 2: Post-Index Performance Analysis
+
+**Index created:** `idx_enrollments_offering_id`
+
+**Indexed column:** `enrollments.offering_id`
+
+After creating the index and running `ANALYZE enrollments`, the original Course Results Analysis query was executed again using `EXPLAIN ANALYZE`.
+
+**Post-index execution results:**
+- Execution Time: 3.968 ms
+- Planning Time: 10.314 ms
+- Rows returned: 500
+- Enrollments scan method: Sequential Scan
+- Join method: Hash Join
+
+**Comparison with baseline:**
+
+| Metric | Before Index | After Index |
+|---|---:|---:|
+| Execution Time | 3.940 ms | 3.968 ms |
+| Planning Time | 3.248 ms | 10.314 ms |
+| Rows Returned | 500 | 500 |
+| Enrollments Scan | Sequential Scan | Sequential Scan |
+
+**Analysis:**
+
+The execution time increased slightly from 3.940 ms to 3.968 ms, a difference of approximately 0.71%.
+
+The execution plan shows that PostgreSQL continued using a sequential scan on the enrollments table rather than the newly created index. It used a Hash Join to connect enrollments with course offerings.
+
+This is a reasonable optimizer decision because the query processes 500 matching enrollment records from a table containing 5,000 records. A sequential scan may be more efficient than retrieving many records through an index.
+
+The planning time also increased, but planning time can fluctuate between executions and should not be interpreted as evidence that the index caused slower query execution.
+
+**Conclusion:**
+
+The index was successfully created, but PostgreSQL did not select it for this query. The experiment demonstrates that index effectiveness depends on query structure, table size, data distribution, and the optimizer's cost estimates.
