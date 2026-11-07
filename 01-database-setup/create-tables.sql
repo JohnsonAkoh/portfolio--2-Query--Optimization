@@ -1,4 +1,3 @@
-
 -- ============================================================
 -- PORTFOLIO 2: QUERY OPTIMIZATION
 -- DATABASE SCHEMA CREATION
