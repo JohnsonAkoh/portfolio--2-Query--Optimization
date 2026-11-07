@@ -110,3 +110,40 @@ The planning time also increased, but planning time can fluctuate between execut
 **Conclusion:**
 
 The index was successfully created, but PostgreSQL did not select it for this query. The experiment demonstrates that index effectiveness depends on query structure, table size, data distribution, and the optimizer's cost estimates.
+### Experiment 3: Post-Index Performance Analysis
+
+**Indexes previously created:**
+- `idx_students_department_id`
+- `idx_enrollments_offering_id`
+
+The Department-Level Academic Performance query was executed again using `EXPLAIN ANALYZE`.
+
+**Post-index execution results:**
+- Execution Time: 19.449 ms
+- Planning Time: 6.352 ms
+- Rows returned: 10
+- Records processed: 5,000
+- Main operations: Hash Join, Sort and GroupAggregate
+
+**Comparison with baseline:**
+
+| Metric | Before Indexing | After Indexing |
+|---|---:|---:|
+| Execution Time | 25.721 ms | 19.449 ms |
+| Planning Time | 3.398 ms | 6.352 ms |
+| Rows Returned | 10 | 10 |
+| Records Processed | 5,000 | 5,000 |
+
+**Analysis:**
+
+The execution time decreased from 25.721 ms to 19.449 ms, representing an observed reduction of approximately 24.4%.
+
+However, the execution plan does not show either of the newly created indexes being used. PostgreSQL continued using sequential scans and Hash Join operations to process the records.
+
+The query also performed a sorting operation on 5,000 records before executing GroupAggregate to produce the 10 department/course summary rows.
+
+The observed performance reduction cannot therefore be attributed directly to the newly created indexes. Execution variability, caching and other database conditions may influence the difference.
+
+**Conclusion:**
+
+The query executed successfully with a lower observed execution time. However, the execution plan indicates that sorting, joining and aggregation remain important operations. Further testing is required before concluding that a particular optimization caused the improvement.
