@@ -1,5 +1,58 @@
--- EXPERIMENT 3:
--- Department-Level Academic Performance Analysis
+
+-- ============================================================
+-- PORTFOLIO 2: QUERY OPTIMIZATION
+-- Original SQL Queries - Baseline Performance Testing
+-- Case Study: Student Management System
+-- ============================================================
+
+-- EXPERIMENT 1: Student Department Search
+-- Purpose: Retrieve students belonging to a particular department.
+
+EXPLAIN ANALYZE
+SELECT
+    s.student_id,
+    s.registration_number,
+    s.first_name,
+    s.last_name,
+    d.department_name
+FROM students s
+JOIN departments d
+    ON s.department_id = d.department_id
+WHERE s.department_id = 2;
+
+
+-- ============================================================
+-- EXPERIMENT 2: Course Results Analysis
+-- Purpose: Retrieve student results for a selected course.
+
+EXPLAIN ANALYZE
+SELECT
+    s.registration_number,
+    s.first_name,
+    s.last_name,
+    c.course_code,
+    c.course_title,
+    r.ca_score,
+    r.examination_score,
+    r.total_score,
+    r.grade
+FROM students s
+JOIN enrollments e
+    ON s.student_id = e.student_id
+JOIN course_offerings co
+    ON e.offering_id = co.offering_id
+JOIN courses c
+    ON co.course_id = c.course_id
+JOIN results r
+    ON e.enrollment_id = r.enrollment_id
+WHERE c.course_code = 'IT101'
+ORDER BY s.registration_number;
+
+
+-- ============================================================
+-- EXPERIMENT 3: Department-Level Academic Performance
+-- Purpose: Calculate student counts, average scores and
+--          Grade A counts for each department and course.
 
 EXPLAIN ANALYZE
 SELECT
@@ -27,3 +80,7 @@ GROUP BY
 ORDER BY
     d.department_name,
     c.course_code;
+
+-- ============================================================
+-- END OF ORIGINAL QUERIES
+-- ============================================================
